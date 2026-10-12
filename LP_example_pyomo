@@ -1,0 +1,36 @@
+import pyomo.environ as pyo
+
+# Upper and lower bounds
+x_lower = [0, 0]
+x_upper = [6, 10]
+
+# Model
+m = pyo.ConcreteModel()
+m.x = pyo.Var(range(2), domain=pyo.NonNegativeReals)
+
+# Objective: max x1 + x2
+m.obj = pyo.Objective(
+    expr=m.x[0] + m.x[1],
+    sense=pyo.maximize
+)
+
+# x bounds
+for i in range(len(x_lower)):
+    m.x[i].setlb(x_lower[i])
+    m.x[i].setub(x_upper[i])
+    m.x[i].set_value(0)
+
+# Inequalities
+m.cons = pyo.ConstraintList()
+m.cons.add(1.5*m.x[0] + m.x[1] <= 10)
+m.cons.add(-m.x[0] + 2*m.x[1] <= 8)
+m.cons.add(0.5*m.x[0] + m.x[1] <= 6)
+
+# Solve
+solver = pyo.SolverFactory("appsi_highs")
+res = solver.solve(m, tee=False)
+
+# Print solution
+print("Status:", res.solver.status, res.solver.termination_condition)
+print(f"x* = ({pyo.value(m.x[0]):.6g}, {pyo.value(m.x[1]):.6g})")
+print(f"Optimalwert z* = {pyo.value(m.obj):.6g}")
