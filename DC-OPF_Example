@@ -1,0 +1,51 @@
+import pyomo.environ as pyo
+import numpy as np
+
+# Modell
+m = pyo.ConcreteModel()
+
+# Define Varibales
+m.PG_1 = pyo.Var(domain=pyo.Reals, bounds=(0, 3))
+m.PG_2 = pyo.Var(domain=pyo.Reals, bounds=(0, 0.8))
+
+m.theta_1 = pyo.Var(domain=pyo.Reals, bounds=(-np.pi, np.pi))
+m.theta_2 = pyo.Var(domain=pyo.Reals, bounds=(-np.pi, np.pi))
+m.theta_3 = pyo.Var(domain=pyo.Reals, bounds=(-np.pi, np.pi))
+
+# Objective:
+m.obj = pyo.Objective(expr=2 * m.PG_1 + 1 * m.PG_2, sense=pyo.minimize)
+
+m.cons = pyo.ConstraintList()
+
+## Power flow constraints
+m.cons.add(m.PG_1 * 0.1 == (m.theta_1 - m.theta_2) + (m.theta_1 - m.theta_3))
+m.cons.add(m.PG_2 * 0.1 == (m.theta_2 - m.theta_1) + (m.theta_2 - m.theta_3))
+m.cons.add(-0.8 * 0.1 == (m.theta_3 - m.theta_1) + (m.theta_3 - m.theta_2))
+
+## Powe flow limits
+m.cons.add(-0.25 <= (m.theta_1 - m.theta_2) / 0.1)
+m.cons.add(-2.00 <= (m.theta_1 - m.theta_3) / 0.1)
+m.cons.add(-2.00 <= (m.theta_2 - m.theta_3) / 0.1)
+
+m.cons.add(0.25 >= (m.theta_1 - m.theta_2) / 0.1)
+m.cons.add(2.00 >= (m.theta_1 - m.theta_3) / 0.1)
+m.cons.add(2.00 >= (m.theta_2 - m.theta_3) / 0.1)
+
+## Slack
+m.cons.add(m.theta_1 == 0)
+
+# solve
+solver = pyo.SolverFactory(("appsi_highs"))
+res = solver.solve(m, tee=True)
+print("Solver status:", res.solver.status)
+print("Termination condition:", res.solver.termination_condition)
+
+PG_1_opt = pyo.value(m.PG_1)
+PG_2_opt = pyo.value(m.PG_2)
+P12_opt = (pyo.value(m.theta_1) - pyo.value(m.theta_2)) / 0.1
+P23_opt = (pyo.value(m.theta_2) - pyo.value(m.theta_3)) / 0.1
+P13_opt = (pyo.value(m.theta_1) - pyo.value(m.theta_3)) / 0.1
+
+theta_1 = pyo.value(m.theta_1)
+theta_2 = pyo.value(m.theta_2)
+theta_3 = pyo.value(m.theta_3)
